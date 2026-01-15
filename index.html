@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jam Online & Tanggal</title>
+
+<style>
+  body{
+    margin:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color:#fff;
+  }
+
+  .clock-box{
+    background:rgba(255,255,255,0.08);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:20px;
+    padding:30px 40px;
+    text-align:center;
+    box-shadow:0 20px 50px rgba(0,0,0,0.4);
+  }
+
+  .time{
+    font-size:56px;
+    font-weight:700;
+    letter-spacing:3px;
+  }
+
+  .date{
+    margin-top:10px;
+    font-size:18px;
+    color:#dce6ff;
+    letter-spacing:1px;
+  }
+
+  .zone{
+    margin-top:6px;
+    font-size:14px;
+    opacity:0.8;
+  }
+</style>
+</head>
+
+<body>
+  <div class="clock-box">
+    <div class="time" id="time">00:00:00</div>
+    <div class="date" id="date">Senin, 01 Januari 2026</div>
+    <div class="zone" id="zone">WIB</div>
+  </div>
+
+<script>
+function updateClock(){
+  const now = new Date();
+
+  const hours   = String(now.getHours()).padStart(2,'0');
+  const minutes = String(now.getMinutes()).padStart(2,'0');
+  const seconds = String(now.getSeconds()).padStart(2,'0');
+
+  const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
+  const months = [
+    "Januari","Februari","Maret","April","Mei","Juni",
+    "Juli","Agustus","September","Oktober","November","Desember"
+  ];
+
+  const dayName = days[now.getDay()];
+  const date = now.getDate();
+  const month = months[now.getMonth()];
+  const year = now.getFullYear();
+
+  document.getElementById("time").textContent =
+    `${hours}:${minutes}:${seconds}`;
+
+  document.getElementById("date").textContent =
+    `${dayName}, ${date} ${month} ${year}`;
+
+  // Zona waktu otomatis
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  document.getElementById("zone").textContent = tz;
+}
+
+setInterval(updateClock, 1000);
+updateClock();
+</script>
+</body>
+</html>
