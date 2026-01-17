@@ -201,111 +201,26 @@
   .sep{
     font-size: 44px;
     opacity:.85;
-    transform: translateZ(10px);
-    text-shadow: 0 10px 40px rgba(0,0,0,.35);
-  }
+    transform: translateZ(10px)<div class="mw-bg">
+  <div class="mw-etch"></div>
+  <div class="mw-grid"></div>
+  <div class="mw-rays"></div>
+</div>
 
-  .flip{
-    width: clamp(86px, 12vw, 108px);
-    height: clamp(92px, 12vw, 112px);
-    border-radius: 22px;
-    position:relative;
-    transform-style:preserve-3d;
-    box-shadow: 0 18px 60px rgba(0,0,0,.38);
-  }
-
-  .flip .face{
-    position:absolute; inset:0;
-    border-radius: 22px;
-    border:1px solid rgba(255,255,255,.14);
-    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
-    display:grid;
-    place-items:center;
-    font-size: clamp(42px, 6vw, 56px);
-    font-weight: 1000;
-    letter-spacing: 2px;
-    backface-visibility: hidden;
-    text-shadow: 0 16px 60px rgba(0,0,0,.45);
-  }
-
-  .flip .front{ transform: rotateX(0deg) translateZ(1px); }
-  .flip .back { transform: rotateX(180deg) translateZ(1px); }
-
-  .flip.anim{
-    animation: flip 0.55s cubic-bezier(.2,.8,.2,1);
-  }
-  @keyframes flip{
-    0%   { transform: rotateX(0deg); }
-    100% { transform: rotateX(-180deg); }
-  }
-
-  .date{
-    color: var(--muted);
-    letter-spacing: .5px;
-    font-size: 14px;
-    margin-top: 2px;
-  }
-
-  .row{
-    margin-top: 18px;
-    display:flex;
-    flex-wrap:wrap;
-    gap:10px;
-  }
-
-  .pill{
-    padding:10px 12px;
-    border-radius:16px;
-    border:1px solid rgba(255,255,255,.14);
-    background: rgba(0,0,0,.18);
-    color: var(--muted);
-    font-size:12px;
-    display:flex;
-    gap:8px;
-    align-items:center;
-  }
-
-  .kbd{
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    color: var(--text);
-    background: rgba(255,255,255,.06);
-    border: 1px solid rgba(255,255,255,.12);
-    padding: 3px 7px;
-    border-radius:10px;
-    font-size:12px;
-  }
-
-  .footer{
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid rgba(255,255,255,.10);
-    color: rgba(255,255,255,.55);
-    font-size: 12px;
-    display:flex;
-    justify-content:space-between;
-    gap:10px;
-  }
-
-  /* floating animation */
-  .float{
-    animation: floaty 4.8s ease-in-out infinite;
-    transform-style: preserve-3d;
-  }
-  @keyframes floaty{
-    0%,100% { transform: translateY(0); }
-    50%     { transform: translateY(-10px); }
-  }
-
-  @media (max-width:520px){
-    .content{ padding: 22px 18px 18px; }
-    .sep{ font-size: 36px; }
-  }
+<canvas id="mwTiles"></canvas>
 </style>
 </head>
 
 <body>
   <canvas id="stars"></canvas>
   <div class="bg"></div>
+<div class="mw-bg">
+  <div class="mw-etch"></div>
+  <div class="mw-grid"></div>
+  <div class="mw-rays"></div>
+</div>
+
+<canvas id="mwTiles"></canvas>
 
   <div class="wrap">
     <div class="card float" id="card">
@@ -370,208 +285,183 @@
 
 <script>
 /* =======================
-   Particles / Stars Canvas
+   Mahjong 3D Background (Canvas Tiles)
 ======================= */
-const canvas = document.getElementById("stars");
-const ctx = canvas.getContext("2d");
+const tileCanvas = document.getElementById("mwTiles");
+const tctx = tileCanvas.getContext("2d");
 
-let W, H, DPR;
-let stars = [];
-let mouse = { x: 0, y: 0, active: false };
+let TW, TH, TDPR;
+let tiles = [];
+let mwMouse = { x: 0, y: 0, active: false };
 
-function resize(){
-  DPR = Math.min(2, window.devicePixelRatio || 1);
-  W = Math.floor(window.innerWidth);
-  H = Math.floor(window.innerHeight);
-  canvas.width = Math.floor(W * DPR);
-  canvas.height = Math.floor(H * DPR);
-  canvas.style.width = W + "px";
-  canvas.style.height = H + "px";
-  ctx.setTransform(DPR,0,0,DPR,0,0);
+function tResize(){
+  TDPR = Math.min(2, window.devicePixelRatio || 1);
+  TW = Math.floor(window.innerWidth);
+  TH = Math.floor(window.innerHeight);
+  tileCanvas.width  = Math.floor(TW * TDPR);
+  tileCanvas.height = Math.floor(TH * TDPR);
+  tileCanvas.style.width = TW + "px";
+  tileCanvas.style.height = TH + "px";
+  tctx.setTransform(TDPR,0,0,TDPR,0,0);
 
-  // rebuild stars for consistent density
-  const count = Math.floor((W * H) / 14000);
-  stars = Array.from({length: Math.max(80, count)}, () => makeStar());
+  // density
+  const count = Math.max(42, Math.floor((TW * TH) / 28000));
+  tiles = Array.from({length: count}, () => makeTile());
 }
-window.addEventListener("resize", resize);
+window.addEventListener("resize", tResize);
 
-function rand(min, max){ return Math.random() * (max - min) + min; }
+function trand(min, max){ return Math.random() * (max - min) + min; }
 
-function makeStar(){
-  const z = rand(0.2, 1.0);          // depth
+const symbols = ["萬","筒","索","東","發","中","🀄"];
+function makeTile(){
+  const z = trand(0.15, 1.0); // depth
+  const size = trand(18, 44) * (0.55 + z);
   return {
-    x: rand(0, W),
-    y: rand(0, H),
-    r: rand(0.6, 2.1) * z,
-    vx: rand(-0.18, 0.18) * z,
-    vy: rand(0.08, 0.30) * z,
-    a: rand(0.25, 0.95),
-    z
+    x: trand(0, TW),
+    y: trand(0, TH),
+    z,
+    size,
+    rot: trand(-0.6, 0.6),
+    vx: trand(-0.08, 0.10) * z,
+    vy: trand( 0.10, 0.28) * z,
+    a: trand(0.22, 0.75),
+    sym: symbols[Math.floor(Math.random() * symbols.length)],
+    hue: trand(135, 175), // jade-ish
+    gold: Math.random() < 0.22
   };
 }
 
-function draw(){
-  ctx.clearRect(0,0,W,H);
+function roundRect(ctx, x, y, w, h, r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+rr, y);
+  ctx.arcTo(x+w, y,   x+w, y+h, rr);
+  ctx.arcTo(x+w, y+h, x,   y+h, rr);
+  ctx.arcTo(x,   y+h, x,   y,   rr);
+  ctx.arcTo(x,   y,   x+w, y,   rr);
+  ctx.closePath();
+}
 
-  // soft vignette
-  const grd = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H)/1.2);
-  grd.addColorStop(0, "rgba(0,0,0,0)");
-  grd.addColorStop(1, "rgba(0,0,0,0.45)");
-  ctx.fillStyle = grd;
-  ctx.fillRect(0,0,W,H);
+function drawTile(t){
+  // parallax by mouse (stronger in front)
+  const px = mwMouse.active ? (mwMouse.x - TW/2) * 0.010 * t.z : 0;
+  const py = mwMouse.active ? (mwMouse.y - TH/2) * 0.010 * t.z : 0;
 
-  // stars
-  for(const s of stars){
-    // parallax to mouse
-    const px = mouse.active ? (mouse.x - W/2) * 0.0008 * (1 - s.z) : 0;
-    const py = mouse.active ? (mouse.y - H/2) * 0.0008 * (1 - s.z) : 0;
+  const x = t.x + px;
+  const y = t.y + py;
 
-    ctx.beginPath();
-    ctx.arc(s.x + px, s.y + py, s.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(200,220,255,${s.a})`;
-    ctx.fill();
+  const w = t.size * 1.08;
+  const h = t.size * 1.32;
 
-    // glow
-    ctx.beginPath();
-    ctx.arc(s.x + px, s.y + py, s.r * 2.4, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(110,140,255,${s.a * 0.08})`;
-    ctx.fill();
+  tctx.save();
+  tctx.translate(x, y);
+  tctx.rotate(t.rot);
 
-    // move
-    s.x += s.vx;
-    s.y += s.vy;
+  // shadow (depth)
+  tctx.globalAlpha = t.a * 0.65;
+  tctx.filter = "blur(10px)";
+  tctx.fillStyle = "rgba(0,0,0,.45)";
+  roundRect(tctx, -w/2 + 6, -h/2 + 8, w, h, 12);
+  tctx.fill();
+
+  // main body
+  tctx.filter = "none";
+  tctx.globalAlpha = t.a;
+
+  // glossy jade/ivory body
+  const body = tctx.createLinearGradient(-w/2, -h/2, w/2, h/2);
+  body.addColorStop(0, "rgba(255,255,255,.10)");
+  body.addColorStop(0.45, `hsla(${t.hue}, 85%, 62%, .20)`);
+  body.addColorStop(1, "rgba(0,0,0,.18)");
+
+  roundRect(tctx, -w/2, -h/2, w, h, 14);
+  tctx.fillStyle = "rgba(255,255,255,.06)";
+  tctx.fill();
+
+  // inner panel
+  roundRect(tctx, -w/2 + 6, -h/2 + 6, w-12, h-12, 12);
+  tctx.fillStyle = body;
+  tctx.fill();
+
+  // stroke (gold/jade)
+  tctx.lineWidth = 1.2;
+  tctx.strokeStyle = t.gold ? "rgba(250,204,21,.42)" : "rgba(16,185,129,.35)";
+  tctx.stroke();
+
+  // shine strip
+  tctx.globalAlpha = t.a * 0.35;
+  tctx.beginPath();
+  tctx.moveTo(-w/2 + 10, -h/2 + 12);
+  tctx.lineTo( w/2 - 14, -h/2 + 6);
+  tctx.lineTo( w/2 - 6,  -h/2 + 16);
+  tctx.lineTo(-w/2 + 6,  -h/2 + 22);
+  tctx.closePath();
+  tctx.fillStyle = "rgba(255,255,255,.20)";
+  tctx.fill();
+
+  // symbol
+  tctx.globalAlpha = t.a * 0.92;
+  tctx.font = `900 ${Math.max(14, t.size*0.62)}px ui-sans-serif, system-ui`;
+  tctx.textAlign = "center";
+  tctx.textBaseline = "middle";
+  tctx.fillStyle = t.gold ? "rgba(250,204,21,.85)" : "rgba(220,255,245,.88)";
+  tctx.shadowColor = t.gold ? "rgba(250,204,21,.35)" : "rgba(16,185,129,.28)";
+  tctx.shadowBlur = 14;
+  tctx.fillText(t.sym, 0, 2);
+
+  tctx.restore();
+}
+
+function tDraw(){
+  tctx.clearRect(0,0,TW,TH);
+
+  // soft fog / depth
+  const fog = tctx.createRadialGradient(TW/2, TH/2, 0, TW/2, TH/2, Math.max(TW,TH)/1.2);
+  fog.addColorStop(0, "rgba(0,0,0,0)");
+  fog.addColorStop(1, "rgba(0,0,0,.35)");
+  tctx.fillStyle = fog;
+  tctx.fillRect(0,0,TW,TH);
+
+  // draw sorted by depth
+  tiles.sort((a,b)=> a.z-b.z);
+  for(const t of tiles){
+    drawTile(t);
+
+    // motion
+    t.x += t.vx;
+    t.y += t.vy;
+
+    // gentle rotation drift
+    t.rot += (0.0015 * (t.z + 0.2));
 
     // wrap
-    if(s.x < -10) s.x = W + 10;
-    if(s.x > W + 10) s.x = -10;
-    if(s.y > H + 10) s.y = -10;
+    const pad = 80;
+    if(t.x < -pad) t.x = TW + pad;
+    if(t.x > TW + pad) t.x = -pad;
+    if(t.y > TH + pad) t.y = -pad;
   }
 
-  requestAnimationFrame(draw);
+  requestAnimationFrame(tDraw);
 }
 
 window.addEventListener("mousemove", (e) => {
-  mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true;
+  mwMouse.x = e.clientX; mwMouse.y = e.clientY; mwMouse.active = true;
+
+  // CSS parallax for layers
+  const dx = (e.clientX - TW/2) / TW;
+  const dy = (e.clientY - TH/2) / TH;
+  document.querySelector(".mw-grid")?.style.setProperty("transform",
+    `translateZ(-240px) rotateX(58deg) translate3d(${dx*18}px, ${dy*10}px, 0)`);
+  document.querySelector(".mw-etch")?.style.setProperty("transform",
+    `translateZ(-320px) rotateX(62deg) translate3d(${dx*26}px, ${dy*14}px, 0)`);
+  document.querySelector(".mw-rays")?.style.setProperty("transform",
+    `translateZ(-180px) rotateX(52deg) translate3d(${dx*14}px, ${dy*8}px, 0)`);
 });
-window.addEventListener("mouseleave", () => mouse.active = false);
+window.addEventListener("mouseleave", () => mwMouse.active = false);
 
-resize();
-draw();
+tResize();
+tDraw();
 
-/* =======================
-   3D Tilt
-======================= */
-const card = document.getElementById("card");
-
-function setTilt(clientX, clientY){
-  const r = card.getBoundingClientRect();
-  const x = clientX - (r.left + r.width/2);
-  const y = clientY - (r.top + r.height/2);
-
-  const maxTilt = 11;
-  const rx = (-y / (r.height/2)) * maxTilt;
-  const ry = ( x / (r.width/2)) * maxTilt;
-
-  card.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
-}
-function resetTilt(){ card.style.transform = "rotateX(0deg) rotateY(0deg)"; }
-
-window.addEventListener("mousemove", (e) => setTilt(e.clientX, e.clientY));
-window.addEventListener("mouseleave", resetTilt);
-
-// touch
-window.addEventListener("touchmove", (e) => {
-  if(!e.touches || !e.touches[0]) return;
-  setTilt(e.touches[0].clientX, e.touches[0].clientY);
-}, { passive:true });
-window.addEventListener("touchend", resetTilt);
-
-/* =======================
-   Clock + Flip animation
-======================= */
-const days = ["Minggu","Senin","Selasa","Rabu","Kamis","Jumat","Sabtu"];
-const months = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
-
-let use24 = true;
-const toggleFmt = document.getElementById("toggleFmt");
-
-toggleFmt.addEventListener("click", () => {
-  use24 = !use24;
-  toggleFmt.textContent = use24 ? "24H" : "12H";
-  updateClock(true);
-});
-
-function pad(n){ return String(n).padStart(2,'0'); }
-
-function setFlip(elId, value){
-  const box = document.getElementById(elId);
-  const front = document.getElementById(elId + "Front");
-  const back  = document.getElementById(elId + "Back");
-
-  const current = front.textContent;
-  if(current === value) return; // no change
-
-  // set next value on back, animate, then swap
-  back.textContent = value;
-  box.classList.remove("anim");
-  void box.offsetWidth; // reflow
-  box.classList.add("anim");
-
-  // after animation, set front to value and reset
-  setTimeout(() => {
-    front.textContent = value;
-    box.classList.remove("anim");
-  }, 560);
-}
-
-function updateClock(force=false){
-  const now = new Date();
-
-  let hours = now.getHours();
-  if(!use24){
-    hours = hours % 12;
-    hours = hours === 0 ? 12 : hours;
-  }
-
-  const hh = pad(hours);
-  const mm = pad(now.getMinutes());
-  const ss = pad(now.getSeconds());
-
-  if(force){
-    // force set without anim
-    document.getElementById("hhFront").textContent = hh;
-    document.getElementById("mmFront").textContent = mm;
-    document.getElementById("ssFront").textContent = ss;
-    document.getElementById("hhBack").textContent  = hh;
-    document.getElementById("mmBack").textContent  = mm;
-    document.getElementById("ssBack").textContent  = ss;
-  }else{
-    setFlip("hh", hh);
-    setFlip("mm", mm);
-    setFlip("ss", ss);
-  }
-
-  const dayName = days[now.getDay()];
-  const d = now.getDate();
-  const mo = months[now.getMonth()];
-  const y = now.getFullYear();
-  document.getElementById("date").textContent = `${dayName}, ${d} ${mo} ${y}`;
-
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "Local Time";
-  document.getElementById("timezone").textContent = tz;
-  document.getElementById("tzLabel").textContent = tz;
-
-  const full = now.toLocaleString("id-ID", {
-    weekday:"long", year:"numeric", month:"long", day:"numeric",
-    hour:"2-digit", minute:"2-digit", second:"2-digit"
-  });
-  document.getElementById("fullDate").textContent = full;
-
-  document.getElementById("tick").textContent = `Update: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-}
-
-setInterval(updateClock, 1000);
-updateClock(true);
 </script>
 </body>
 </html>
